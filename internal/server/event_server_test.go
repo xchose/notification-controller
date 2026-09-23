@@ -656,6 +656,7 @@ func TestEventKeyFunc(t *testing.T) {
 			res := httptest.NewRecorder()
 			req := httptest.NewRequest("POST", "/", bytes.NewBuffer(eventData))
 			ctxWithEvent := context.WithValue(req.Context(), eventContextKey{}, event)
+			ctxWithEvent = context.WithValue(ctxWithEvent, eventKeyContextKey{}, notifier.EventKey(event))
 			reqWithEvent := req.WithContext(ctxWithEvent)
 			handler.ServeHTTP(res, reqWithEvent)
 

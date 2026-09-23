@@ -216,20 +216,8 @@ func logRateLimitMiddleware(h http.Handler) http.Handler {
 	})
 }
 
-// eventKeyFunc returns the key of the event stored in the request context,
+// eventKeyFunc returns the key of the event computed by eventMiddleware,
 // used by the rate limiter to deduplicate events.
 func eventKeyFunc(r *http.Request) (string, error) {
-	event := r.Context().Value(eventContextKey{}).(*eventv1.Event)
-	return eventKeyFromContext(r.Context(), event), nil
-}
-
-// eventKeyFromContext returns the event key computed once by eventMiddleware.
-// The key is derived from the event when absent from the context, so that
-// handlers invoked outside the middleware chain still share the same
-// identity. See notifier.EventKey.
-func eventKeyFromContext(ctx context.Context, event *eventv1.Event) string {
-	if key, ok := ctx.Value(eventKeyContextKey{}).(string); ok {
-		return key
-	}
-	return notifier.EventKey(event)
+	return r.Context().Value(eventKeyContextKey{}).(string), nil
 }

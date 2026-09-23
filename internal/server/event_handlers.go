@@ -351,11 +351,6 @@ func (s *EventServer) getNotificationParams(ctx context.Context, event *eventv1.
 			auth.FeatureGateObjectLevelWorkloadIdentity)
 	}
 
-	// The event key identifies the event across the controller. It is
-	// taken before the event is mutated so that it matches the key used
-	// by the rate limiter.
-	eventKey := eventKeyFromContext(ctx, event)
-
 	// Create a copy of the event and combine event metadata
 	notification := *event.DeepCopy()
 	s.combineEventMetadata(ctx, &notification, alert)
@@ -366,7 +361,7 @@ func (s *EventServer) getNotificationParams(ctx context.Context, event *eventv1.
 		return nil, droppedProviders{}, fmt.Errorf("failed to create commit status: %w", err)
 	}
 
-	sender, token, err := createNotifier(ctx, s.kubeClient, &provider, commitStatus, eventKey, s.tokenCache)
+	sender, token, err := createNotifier(ctx, s.kubeClient, &provider, commitStatus, s.tokenCache)
 	if err != nil {
 		return nil, droppedProviders{}, fmt.Errorf("failed to initialize notifier for provider '%s': %w", provider.Name, err)
 	}
@@ -445,10 +440,9 @@ func extractAuthFromSecret(ctx context.Context, secret *corev1.Secret) ([]notifi
 }
 
 // createNotifier constructs a notifier interface from the provider configuration,
-// handling authentication, proxy settings, and TLS configuration. The event key
-// is the identity of the event being dispatched, see notifier.EventKey.
+// handling authentication, proxy settings, and TLS configuration.
 func createNotifier(ctx context.Context, kubeClient client.Client, provider *apiv1beta3.Provider,
-	commitStatus string, eventKey string, tokenCache *cache.TokenCache) (notifier.Interface, string, error) {
+	commitStatus string, tokenCache *cache.TokenCache) (notifier.Interface, string, error) {
 	options := []notifier.Option{
 		notifier.WithTokenClient(kubeClient),
 		notifier.WithProviderUID(string(provider.UID)),
@@ -460,7 +454,9 @@ func createNotifier(ctx context.Context, kubeClient client.Client, provider *api
 		options = append(options, notifier.WithCommitStatus(commitStatus))
 	}
 
-	if eventKey != "" {
+	// The event key computed by eventMiddleware identifies the event across
+	// the controller, see notifier.EventKey.
+	if eventKey, ok := ctx.Value(eventKeyContextKey{}).(string); ok {
 		options = append(options, notifier.WithEventKey(eventKey))
 	}
 

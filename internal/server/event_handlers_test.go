@@ -983,7 +983,7 @@ Wf86aX6PepsntZv2GYlA5UpabfT2EZICICpJ5h/iI+i341gBmLiAFQOyTDT+/wQc
 			}
 			provider := apiv1beta3.Provider{Spec: *tt.providerSpec}
 
-			notifier, _, err := createNotifier(context.TODO(), builder.Build(), &provider, "", "", nil)
+			notifier, _, err := createNotifier(context.TODO(), builder.Build(), &provider, "", nil)
 			g.Expect(err != nil).To(Equal(tt.wantErr))
 
 			if !tt.wantErr && tt.wantTLSConfig != nil {
@@ -1797,13 +1797,14 @@ func TestCreateNotifier_EventKey(t *testing.T) {
 		SecretRef: &meta.LocalObjectReference{Name: secret.Name},
 	}}
 
-	n, _, err := createNotifier(context.TODO(), kclient, &provider, "", "event-key", nil)
+	ctx := context.WithValue(context.TODO(), eventKeyContextKey{}, "event-key")
+	n, _, err := createNotifier(ctx, kclient, &provider, "", nil)
 	g.Expect(err).ToNot(HaveOccurred())
 	m, ok := n.(*notifier.Mastodon)
 	g.Expect(ok).To(BeTrue(), "expected a Mastodon notifier, got %T", n)
 	g.Expect(m.EventKey).To(Equal("event-key"))
 
-	n, _, err = createNotifier(context.TODO(), kclient, &provider, "", "", nil)
+	n, _, err = createNotifier(context.TODO(), kclient, &provider, "", nil)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(n.(*notifier.Mastodon).EventKey).To(BeEmpty())
 }
