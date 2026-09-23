@@ -1431,10 +1431,11 @@ The [Address](#address) is the Mastodon server root URL, e.g.
 `https://mastodon.social` (the `/api/v1/statuses` path is appended
 automatically).
 
-Statuses are posted with the default posting privacy of the account owning
+Statuses are posted with the default posting visibility of the account owning
 the token, configurable in the Mastodon web interface under
-`Preferences → Other → Posting defaults`. For an alert account, `Unlisted` or
-`Followers only` is recommended to keep events off the public timelines.
+`Preferences → Posting defaults`. For an alert account, `Quiet public`
+(`unlisted` in the Mastodon API) or `Followers only` is recommended to keep
+events off the public timelines.
 
 The status text contains the involved object, the event message and the event
 metadata as key-value lines. Statuses longer than 500 characters (the default
