@@ -108,17 +108,15 @@ func (m *Mastodon) Post(ctx context.Context, event eventv1.Event) error {
 	// request succeeded but its response was lost. It carries the event key
 	// computed by the event server, the same one used for rate limiting, so
 	// that an event has a single identity across the controller. Mastodon
-	// keeps the key for one hour. When called outside the event server the
-	// key is derived from the event as a best effort.
-	idempotencyKey, ok := GetEventKey(ctx)
-	if !ok {
-		idempotencyKey = EventKey(&event)
-	}
+	// keeps the key for one hour.
+	idempotencyKey, hasKey := GetEventKey(ctx)
 
 	opts := []postOption{
 		withRequestModifier(func(req *retryablehttp.Request) {
 			req.Header.Set("Authorization", "Bearer "+m.Token)
-			req.Header.Set("Idempotency-Key", idempotencyKey)
+			if hasKey {
+				req.Header.Set("Idempotency-Key", idempotencyKey)
+			}
 		}),
 	}
 	if m.ProxyURL != "" {

@@ -61,19 +61,18 @@ func TestMastodon_Post(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 }
 
-func TestMastodon_PostIdempotencyKeyFallback(t *testing.T) {
+func TestMastodon_PostWithoutEventKey(t *testing.T) {
 	g := NewWithT(t)
-	event := testEvent()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Without a key in the context the key is derived from the event.
-		g.Expect(r.Header.Get("Idempotency-Key")).To(Equal(EventKey(&event)))
+		// Without a key in the context no Idempotency-Key header is sent.
+		g.Expect(r.Header).ToNot(HaveKey("Idempotency-Key"))
 	}))
 	defer ts.Close()
 
 	mastodon, err := NewMastodon(ts.URL, "", nil, "token")
 	g.Expect(err).ToNot(HaveOccurred())
 
-	err = mastodon.Post(context.TODO(), event)
+	err = mastodon.Post(context.TODO(), testEvent())
 	g.Expect(err).ToNot(HaveOccurred())
 }
 

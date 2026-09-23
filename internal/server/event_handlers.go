@@ -63,10 +63,6 @@ func (s *EventServer) handleEvent() func(w http.ResponseWriter, r *http.Request)
 		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 		defer cancel()
 
-		// Store the event key in the context before removing internal
-		// metadata, so that it matches the key used by the rate limiter.
-		ctx = notifier.WithEventKey(ctx, notifier.EventKey(event))
-
 		// Remove any internal metadata before further processing the event.
 		excludeInternalMetadata(event)
 
@@ -259,6 +255,8 @@ func (s *EventServer) dispatchNotification(ctx context.Context,
 		pctx, cancel := context.WithTimeout(context.Background(), params.timeout)
 		defer cancel()
 		pctx = notifier.WithAlertMetadata(pctx, alert.ObjectMeta)
+		// Forward the event key computed by eventMiddleware, so that
+		// notifiers share the identity used by the rate limiter.
 		if key, ok := notifier.GetEventKey(ctx); ok {
 			pctx = notifier.WithEventKey(pctx, key)
 		}

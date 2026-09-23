@@ -97,8 +97,8 @@ The supported alerting providers are:
 | [Google Pub/Sub](#google-pubsub)                        | `googlepubsub`   |
 | [Grafana](#grafana)                                     | `grafana`        |
 | [incident.io](#incidentio)                              | `incident.io`    |
-| [Mastodon](#mastodon)                                   | `mastodon`       |
 | [Lark](#lark)                                           | `lark`           |
+| [Mastodon](#mastodon)                                   | `mastodon`       |
 | [Matrix](#matrix)                                       | `matrix`         |
 | [Microsoft Teams](#microsoft-teams)                     | `msteams`        |
 | [Opsgenie](#opsgenie)                                   | `opsgenie`       |
