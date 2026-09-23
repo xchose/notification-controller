@@ -18,7 +18,6 @@ package server
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -37,6 +36,8 @@ import (
 
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/cache"
+
+	"github.com/fluxcd/notification-controller/internal/notifier"
 )
 
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
@@ -210,45 +211,9 @@ func logRateLimitMiddleware(h http.Handler) http.Handler {
 	})
 }
 
-// eventKeyFunc generates a unique key for an event based on the provided HTTP
-// request, which can be used to deduplicate events. The key is calculated by
-// concatenating specific event attributes and hashing them using SHA-256.
-// The key is then returned as a hex-encoded string.
-//
-// The event attributes are prefixed with an identifier to avoid collisions
-// between different event attributes.
+// eventKeyFunc returns the key of the event stored in the request context,
+// used by the rate limiter to deduplicate events. See notifier.EventKey.
 func eventKeyFunc(r *http.Request) (string, error) {
 	event := r.Context().Value(eventContextKey{}).(*eventv1.Event)
-
-	comps := []string{
-		"event",
-		"name=" + event.InvolvedObject.Name,
-		"namespace=" + event.InvolvedObject.Namespace,
-		"kind=" + event.InvolvedObject.Kind,
-		"message=" + event.Message,
-	}
-
-	objectGroup := event.InvolvedObject.GetObjectKind().GroupVersionKind().Group
-
-	originRevisionKey := fmt.Sprintf("%s/%s", objectGroup, eventv1.MetaOriginRevisionKey)
-	originRevision, ok := event.Metadata[originRevisionKey]
-	if ok {
-		comps = append(comps, "originRevision="+originRevision)
-	}
-
-	revisionKey := fmt.Sprintf("%s/%s", objectGroup, eventv1.MetaRevisionKey)
-	revision, ok := event.Metadata[revisionKey]
-	if ok {
-		comps = append(comps, "revision="+revision)
-	}
-
-	tokenKey := fmt.Sprintf("%s/%s", objectGroup, eventv1.MetaTokenKey)
-	token, ok := event.Metadata[tokenKey]
-	if ok {
-		comps = append(comps, "token="+token)
-	}
-
-	key := strings.Join(comps, "/")
-	digest := sha256.Sum256([]byte(key))
-	return fmt.Sprintf("%x", digest), nil
+	return notifier.EventKey(event), nil
 }

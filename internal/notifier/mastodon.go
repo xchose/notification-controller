@@ -18,7 +18,6 @@ package notifier
 
 import (
 	"context"
-	"crypto/sha256"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -106,15 +105,20 @@ func (m *Mastodon) Post(ctx context.Context, event eventv1.Event) error {
 	payload := MastodonPayload{Status: status}
 
 	// The Idempotency-Key header prevents a duplicate status when a retried
-	// request succeeded but its response was lost. The event timestamp keeps
-	// the key unique across recurring events of the same object.
-	idempotencyKey := sha256.Sum256([]byte(fmt.Sprintf("%s/%s/%s/%s",
-		event.InvolvedObject.UID, event.Reason, event.Timestamp.UTC().String(), status)))
+	// request succeeded but its response was lost. It carries the event key
+	// computed by the event server, the same one used for rate limiting, so
+	// that an event has a single identity across the controller. Mastodon
+	// keeps the key for one hour. When called outside the event server the
+	// key is derived from the event as a best effort.
+	idempotencyKey, ok := GetEventKey(ctx)
+	if !ok {
+		idempotencyKey = EventKey(&event)
+	}
 
 	opts := []postOption{
 		withRequestModifier(func(req *retryablehttp.Request) {
 			req.Header.Set("Authorization", "Bearer "+m.Token)
-			req.Header.Set("Idempotency-Key", fmt.Sprintf("%x", idempotencyKey))
+			req.Header.Set("Idempotency-Key", idempotencyKey)
 		}),
 	}
 	if m.ProxyURL != "" {

@@ -1438,8 +1438,12 @@ the token, configurable in the Mastodon web interface under
 
 The status text contains the involved object, the event message and the event
 metadata as key-value lines. Statuses longer than 500 characters (the default
-Mastodon server limit) are truncated. An `Idempotency-Key` header derived from
-the event is sent to prevent duplicate statuses on retried requests.
+Mastodon server limit) are truncated.
+
+Each request carries an `Idempotency-Key` header set to the key the controller
+uses for rate limiting events. Mastodon keeps the key for one hour, so retried
+requests and identical events within that window do not create additional
+statuses.
 
 The access token must be provided in the `token` key of the referenced Secret,
 it is sent as a bearer token in the `Authorization` header of the POST request.

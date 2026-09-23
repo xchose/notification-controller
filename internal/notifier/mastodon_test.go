@@ -33,7 +33,7 @@ func TestMastodon_Post(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		g.Expect(r.URL.Path).To(Equal("/api/v1/statuses"))
 		g.Expect(r.Header.Get("Authorization")).To(Equal("Bearer token"))
-		g.Expect(r.Header.Get("Idempotency-Key")).ToNot(BeEmpty())
+		g.Expect(r.Header.Get("Idempotency-Key")).To(Equal("event-key"))
 		g.Expect(r.Header.Get("Content-Type")).To(Equal("application/json"))
 
 		b, err := io.ReadAll(r.Body)
@@ -56,7 +56,24 @@ func TestMastodon_Post(t *testing.T) {
 	mastodon, err := NewMastodon(ts.URL, "", nil, "token")
 	g.Expect(err).ToNot(HaveOccurred())
 
-	err = mastodon.Post(context.TODO(), testEvent())
+	ctx := WithEventKey(context.TODO(), "event-key")
+	err = mastodon.Post(ctx, testEvent())
+	g.Expect(err).ToNot(HaveOccurred())
+}
+
+func TestMastodon_PostIdempotencyKeyFallback(t *testing.T) {
+	g := NewWithT(t)
+	event := testEvent()
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Without a key in the context the key is derived from the event.
+		g.Expect(r.Header.Get("Idempotency-Key")).To(Equal(EventKey(&event)))
+	}))
+	defer ts.Close()
+
+	mastodon, err := NewMastodon(ts.URL, "", nil, "token")
+	g.Expect(err).ToNot(HaveOccurred())
+
+	err = mastodon.Post(context.TODO(), event)
 	g.Expect(err).ToNot(HaveOccurred())
 }
 
