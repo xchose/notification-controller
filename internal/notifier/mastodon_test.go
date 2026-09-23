@@ -53,23 +53,22 @@ func TestMastodon_Post(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	mastodon, err := NewMastodon(ts.URL, "", nil, "token")
+	mastodon, err := NewMastodon(ts.URL, "", nil, "token", "event-key")
 	g.Expect(err).ToNot(HaveOccurred())
 
-	ctx := WithEventKey(context.TODO(), "event-key")
-	err = mastodon.Post(ctx, testEvent())
+	err = mastodon.Post(context.TODO(), testEvent())
 	g.Expect(err).ToNot(HaveOccurred())
 }
 
 func TestMastodon_PostWithoutEventKey(t *testing.T) {
 	g := NewWithT(t)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Without a key in the context no Idempotency-Key header is sent.
+		// Without an event key no Idempotency-Key header is sent.
 		g.Expect(r.Header).ToNot(HaveKey("Idempotency-Key"))
 	}))
 	defer ts.Close()
 
-	mastodon, err := NewMastodon(ts.URL, "", nil, "token")
+	mastodon, err := NewMastodon(ts.URL, "", nil, "token", "")
 	g.Expect(err).ToNot(HaveOccurred())
 
 	err = mastodon.Post(context.TODO(), testEvent())
@@ -91,7 +90,7 @@ func TestMastodon_PostErrorSeverity(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	mastodon, err := NewMastodon(ts.URL, "", nil, "token")
+	mastodon, err := NewMastodon(ts.URL, "", nil, "token", "")
 	g.Expect(err).ToNot(HaveOccurred())
 
 	event := testEvent()
@@ -115,7 +114,7 @@ func TestMastodon_PostStatusTruncated(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	mastodon, err := NewMastodon(ts.URL, "", nil, "token")
+	mastodon, err := NewMastodon(ts.URL, "", nil, "token", "")
 	g.Expect(err).ToNot(HaveOccurred())
 
 	event := testEvent()
@@ -127,14 +126,14 @@ func TestMastodon_PostStatusTruncated(t *testing.T) {
 func TestNewMastodon(t *testing.T) {
 	g := NewWithT(t)
 
-	_, err := NewMastodon("invalid-url", "", nil, "token")
+	_, err := NewMastodon("invalid-url", "", nil, "token", "")
 	g.Expect(err).To(MatchError(ContainSubstring("invalid Mastodon server URL")))
 
-	_, err = NewMastodon("https://mastodon.social", "", nil, "")
+	_, err = NewMastodon("https://mastodon.social", "", nil, "", "")
 	g.Expect(err).To(MatchError(ContainSubstring("empty Mastodon access token")))
 
 	// The statuses path is preserved when already present in the address.
-	m, err := NewMastodon("https://mastodon.social/api/v1/statuses", "", nil, "token")
+	m, err := NewMastodon("https://mastodon.social/api/v1/statuses", "", nil, "token", "")
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(m.URL).To(Equal("https://mastodon.social/api/v1/statuses"))
 }
@@ -163,7 +162,7 @@ func TestMastodon_PostMetadataIsSorted(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	mastodon, err := NewMastodon(ts.URL, "", nil, "token")
+	mastodon, err := NewMastodon(ts.URL, "", nil, "token", "")
 	g.Expect(err).ToNot(HaveOccurred())
 
 	event := testEvent()

@@ -47,6 +47,8 @@ type Mastodon struct {
 	ProxyURL  string
 	Token     string
 	TLSConfig *tls.Config
+	// EventKey is sent as the Idempotency-Key header when set.
+	EventKey string
 }
 
 // MastodonPayload is the JSON form accepted by the statuses endpoint.
@@ -58,8 +60,9 @@ type MastodonPayload struct {
 
 // NewMastodon validates the Mastodon server URL and returns a Mastodon
 // object. The address may be the server root URL, in which case the
-// statuses API path is appended.
-func NewMastodon(serverURL string, proxyURL string, tlsConfig *tls.Config, token string) (*Mastodon, error) {
+// statuses API path is appended. The event key is the identity of the
+// event computed by the event server and is sent as the Idempotency-Key.
+func NewMastodon(serverURL string, proxyURL string, tlsConfig *tls.Config, token string, eventKey string) (*Mastodon, error) {
 	u, err := url.ParseRequestURI(serverURL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid Mastodon server URL %s: '%w'", serverURL, err)
@@ -78,6 +81,7 @@ func NewMastodon(serverURL string, proxyURL string, tlsConfig *tls.Config, token
 		ProxyURL:  proxyURL,
 		Token:     token,
 		TLSConfig: tlsConfig,
+		EventKey:  eventKey,
 	}, nil
 }
 
@@ -106,16 +110,13 @@ func (m *Mastodon) Post(ctx context.Context, event eventv1.Event) error {
 
 	// The Idempotency-Key header prevents a duplicate status when a retried
 	// request succeeded but its response was lost. It carries the event key
-	// computed by the event server, the same one used for rate limiting, so
-	// that an event has a single identity across the controller. Mastodon
-	// keeps the key for one hour.
-	idempotencyKey, hasKey := GetEventKey(ctx)
-
+	// the event server uses for rate limiting, so that an event has a single
+	// identity across the controller. Mastodon keeps the key for one hour.
 	opts := []postOption{
 		withRequestModifier(func(req *retryablehttp.Request) {
 			req.Header.Set("Authorization", "Bearer "+m.Token)
-			if hasKey {
-				req.Header.Set("Idempotency-Key", idempotencyKey)
+			if m.EventKey != "" {
+				req.Header.Set("Idempotency-Key", m.EventKey)
 			}
 		}),
 	}

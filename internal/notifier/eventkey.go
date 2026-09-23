@@ -17,28 +17,12 @@ limitations under the License.
 package notifier
 
 import (
-	"context"
 	"crypto/sha256"
 	"fmt"
 	"strings"
 
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 )
-
-// eventKeyContextKey is the context key under which the event key is stored.
-type eventKeyContextKey struct{}
-
-// WithEventKey returns a copy of ctx carrying the event key computed by
-// EventKey, so that notifiers can reuse it as an idempotency token.
-func WithEventKey(ctx context.Context, key string) context.Context {
-	return context.WithValue(ctx, eventKeyContextKey{}, key)
-}
-
-// GetEventKey returns the event key stored in ctx by WithEventKey.
-func GetEventKey(ctx context.Context) (string, bool) {
-	key, ok := ctx.Value(eventKeyContextKey{}).(string)
-	return key, ok
-}
 
 // EventKey generates a unique key identifying an event. The key is calculated
 // by concatenating specific event attributes and hashing them using SHA-256,

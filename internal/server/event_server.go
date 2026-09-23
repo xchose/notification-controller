@@ -46,6 +46,10 @@ import (
 
 type eventContextKey struct{}
 
+// eventKeyContextKey is the context key under which eventMiddleware stores
+// the event key computed by notifier.EventKey.
+type eventKeyContextKey struct{}
+
 // EventServer handles event POST requests
 type EventServer struct {
 	port                  string
@@ -146,7 +150,7 @@ func (s *EventServer) eventMiddleware(h http.Handler) http.Handler {
 		eventLogger := s.logger.WithValues("eventInvolvedObject", event.InvolvedObject)
 
 		enhancedCtx := context.WithValue(r.Context(), eventContextKey{}, event)
-		enhancedCtx = notifier.WithEventKey(enhancedCtx, notifier.EventKey(event))
+		enhancedCtx = context.WithValue(enhancedCtx, eventKeyContextKey{}, notifier.EventKey(event))
 		enhancedCtx = log.IntoContext(enhancedCtx, eventLogger)
 		enhancedReq := r.WithContext(enhancedCtx)
 
@@ -213,13 +217,19 @@ func logRateLimitMiddleware(h http.Handler) http.Handler {
 }
 
 // eventKeyFunc returns the key of the event stored in the request context,
-// used by the rate limiter to deduplicate events. The key is computed once
-// by eventMiddleware; it is derived from the event when absent from the
-// context. See notifier.EventKey.
+// used by the rate limiter to deduplicate events.
 func eventKeyFunc(r *http.Request) (string, error) {
-	if key, ok := notifier.GetEventKey(r.Context()); ok {
-		return key, nil
-	}
 	event := r.Context().Value(eventContextKey{}).(*eventv1.Event)
-	return notifier.EventKey(event), nil
+	return eventKeyFromContext(r.Context(), event), nil
+}
+
+// eventKeyFromContext returns the event key computed once by eventMiddleware.
+// The key is derived from the event when absent from the context, so that
+// handlers invoked outside the middleware chain still share the same
+// identity. See notifier.EventKey.
+func eventKeyFromContext(ctx context.Context, event *eventv1.Event) string {
+	if key, ok := ctx.Value(eventKeyContextKey{}).(string); ok {
+		return key
+	}
+	return notifier.EventKey(event)
 }

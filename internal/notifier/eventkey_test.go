@@ -17,7 +17,6 @@ limitations under the License.
 package notifier
 
 import (
-	"context"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -68,16 +67,4 @@ func TestEventKey(t *testing.T) {
 	changed = base()
 	changed.Metadata["kustomize.toolkit.fluxcd.io/revision"] = "main@sha1:def"
 	g.Expect(EventKey(&changed)).To(Equal(EventKey(&a)))
-}
-
-func TestEventKeyContext(t *testing.T) {
-	g := NewWithT(t)
-
-	_, ok := GetEventKey(context.Background())
-	g.Expect(ok).To(BeFalse())
-
-	ctx := WithEventKey(context.Background(), "abc")
-	key, ok := GetEventKey(ctx)
-	g.Expect(ok).To(BeTrue())
-	g.Expect(key).To(Equal("abc"))
 }
