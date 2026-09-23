@@ -45,7 +45,11 @@ func TestMastodon_Post(t *testing.T) {
 		g.Expect(payload.Status).To(ContainSubstring("💫 gitrepository/webapp.gitops-system"))
 		g.Expect(payload.Status).To(ContainSubstring("message"))
 		g.Expect(payload.Status).To(ContainSubstring("test: metadata"))
-		g.Expect(payload.Visibility).To(BeEmpty())
+
+		// Visibility is left to the account's default posting privacy.
+		var raw map[string]any
+		g.Expect(json.Unmarshal(b, &raw)).To(Succeed())
+		g.Expect(raw).ToNot(HaveKey("visibility"))
 	}))
 	defer ts.Close()
 
@@ -56,11 +60,10 @@ func TestMastodon_Post(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 }
 
-func TestMastodon_PostVisibilityAndErrorSeverity(t *testing.T) {
+func TestMastodon_PostErrorSeverity(t *testing.T) {
 	g := NewWithT(t)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		g.Expect(r.URL.Path).To(Equal("/api/v1/statuses"))
-		g.Expect(r.URL.Query().Get("visibility")).To(BeEmpty())
 
 		b, err := io.ReadAll(r.Body)
 		g.Expect(err).ToNot(HaveOccurred())
@@ -68,12 +71,11 @@ func TestMastodon_PostVisibilityAndErrorSeverity(t *testing.T) {
 		err = json.Unmarshal(b, &payload)
 		g.Expect(err).ToNot(HaveOccurred())
 
-		g.Expect(payload.Visibility).To(Equal("unlisted"))
 		g.Expect(payload.Status).To(ContainSubstring("🚨"))
 	}))
 	defer ts.Close()
 
-	mastodon, err := NewMastodon(ts.URL+"?visibility=unlisted", "", nil, "token")
+	mastodon, err := NewMastodon(ts.URL, "", nil, "token")
 	g.Expect(err).ToNot(HaveOccurred())
 
 	event := testEvent()

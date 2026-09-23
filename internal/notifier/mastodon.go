@@ -44,23 +44,22 @@ const mastodonMaxChars = 500
 // for posting statuses to a Mastodon account.
 type Mastodon struct {
 	// URL is the fully resolved statuses endpoint of the server.
-	URL        string
-	ProxyURL   string
-	Token      string
-	Visibility string
-	TLSConfig  *tls.Config
+	URL       string
+	ProxyURL  string
+	Token     string
+	TLSConfig *tls.Config
 }
 
 // MastodonPayload is the JSON form accepted by the statuses endpoint.
+// Visibility is intentionally not set so that statuses are posted with
+// the default posting privacy configured on the account.
 type MastodonPayload struct {
-	Status     string `json:"status"`
-	Visibility string `json:"visibility,omitempty"`
+	Status string `json:"status"`
 }
 
 // NewMastodon validates the Mastodon server URL and returns a Mastodon
 // object. The address may be the server root URL, in which case the
-// statuses API path is appended. An optional `visibility` query parameter
-// (public, unlisted, private) overrides the app's default status visibility.
+// statuses API path is appended.
 func NewMastodon(serverURL string, proxyURL string, tlsConfig *tls.Config, token string) (*Mastodon, error) {
 	u, err := url.ParseRequestURI(serverURL)
 	if err != nil {
@@ -71,23 +70,15 @@ func NewMastodon(serverURL string, proxyURL string, tlsConfig *tls.Config, token
 		return nil, errors.New("empty Mastodon access token")
 	}
 
-	// The visibility is carried as a query parameter of the address
-	// because the Provider API has no dedicated field for it.
-	q := u.Query()
-	visibility := q.Get("visibility")
-	q.Del("visibility")
-	u.RawQuery = q.Encode()
-
 	if !strings.HasSuffix(strings.TrimSuffix(u.Path, "/"), mastodonStatusesPath) {
 		u.Path = strings.TrimSuffix(u.Path, "/") + mastodonStatusesPath
 	}
 
 	return &Mastodon{
-		URL:        u.String(),
-		ProxyURL:   proxyURL,
-		Token:      token,
-		Visibility: visibility,
-		TLSConfig:  tlsConfig,
+		URL:       u.String(),
+		ProxyURL:  proxyURL,
+		Token:     token,
+		TLSConfig: tlsConfig,
 	}, nil
 }
 
@@ -112,10 +103,7 @@ func (m *Mastodon) Post(ctx context.Context, event eventv1.Event) error {
 		status = string(runes[:mastodonMaxChars-1]) + "…"
 	}
 
-	payload := MastodonPayload{
-		Status:     status,
-		Visibility: m.Visibility,
-	}
+	payload := MastodonPayload{Status: status}
 
 	// The Idempotency-Key header prevents a duplicate status when a retried
 	// request succeeded but its response was lost. The event timestamp keeps
